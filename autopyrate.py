@@ -7,8 +7,9 @@ genres = ['Alternative Rock']
 
 def main():
 
-	amazon = Amazon.collect_new_albums(genres = genres)
-
+    amazon = Amazon.collect_new_albums(genres = genres)
+    for a in amazon:
+        print a
 
 if __name__ == '__main__':
     main()

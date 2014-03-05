@@ -1,7 +1,12 @@
 #!/usr/bin/python
 
-import re, requests
+import re, requests, time
 from bs4 import BeautifulSoup as bs
+
+class Exceptions:
+
+    class ScrapeTimeout(BaseException):
+        pass
 
 class Collector(object):
 
@@ -18,6 +23,7 @@ class Collector(object):
         self.url = self.site
         if self.grid: self.drop_grid()
         if self.culture: self.artifact = self.culture()
+        self.matrix = None
 
     def locus(self):
 
@@ -37,8 +43,18 @@ class Collector(object):
 
     def excavate(self):
 
-        self.matrix = bs(requests.get(self.url).text)
-        return self.matrix
+        retries = 0
+        while True:
+            if retries == 5: raise Exceptions.ScrapeTimeout('Unable to scrape: %s' % self.url)
+            try:
+                self.matrix = bs(requests.get(self.url, timeout = 5).text)
+            except requests.exceptions.Timeout:
+                print 'excavate timeout'
+                self.matrix = None
+            if self.matrix is not None: return self.matrix
+            print 'retrying excavate (%d): %s' % (retries, self.url)
+            time.sleep(2)
+            retries += 1
 
     def get_all(self, these, conditions, attrs = ()):
 

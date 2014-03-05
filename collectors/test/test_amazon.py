@@ -64,6 +64,21 @@ class TestAmazon:
     def test_collect_tracks_playlist_multivolume(self):
         pass
 
-    @pytest.mark.skipif(True, reason = 'todo')
     def test_collect_tracks_tracklist_multivolume(self):
-        pass
+        
+        g = 'B0002YCVLU'
+        ts = Amazon.Album.Tracks(g).collect()
+        assert(len(ts) == 37)
+        assert(len(set([t.volume for t in ts])) == 4)
+        o, v = (0, 0)
+        for i in range(len(ts)):
+            t = ts[i]
+            assert(isinstance(t, Media.Album.Track))
+            if t.order == 1: 
+                o = 0
+                v += 1
+            o += 1
+            assert(t.order == o)
+            assert(t.volume == v)
+            assert(isinstance(t.title, unicode))
+            assert(t.time is None)
