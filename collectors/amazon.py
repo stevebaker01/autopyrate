@@ -25,7 +25,7 @@ class Amazon(Collector):
 
         for c in album_colls:
             a = c.collect()
-            print a
+            if a: print a
         exit()
         return [a for a in [c.collect() for c in album_colls] if a]
 
@@ -48,6 +48,14 @@ class Album(Amazon):
 
         print self.grid
         self.excavate()
+        retries = 0
+        while not self.get('ul', {'data-category': re.compile(r'.*')}):
+            if retries == 5:
+                raise collector.exceptions.ExcavateFail(self.url)
+            time.sleep(2)
+            retries += 1
+            print 'retrying excavate (%d): %s' % (retries, self.url)
+            excavate()
 
         # ignore things that are not albums
         if not self.get('ul', {'data-category': 'music'}):
@@ -76,6 +84,9 @@ class Album(Amazon):
             return self.collect()
 
         # get details from product details
+        if self.genres and (not isinstance(self.genres, list) and not isinstance(self.genres, tuple)):
+            self.genres = [self.genres]
+        album.genres += self.genres
         details = details.find_all('li')
         for i in range(len(details)):
             detail = details[i].text.strip()
@@ -91,7 +102,10 @@ class Album(Amazon):
             else:
                 # genres
                 if detail.startswith('#'):
-                    album.genres += [g.strip() for g in detail.split('>')[1:-1]]
+                    album.genres += [h for h in [g.strip() for g in detail.split('>')[1:-1]]]
+                    # remove unwanted genres
+                    for remove in ['Vinyl']:
+                        while remove in self.genres: del[self.genres[self.genres.index(remove)]]
                 # tags
                 elif detail.startswith('Format:'):
                     ignore = ['CD', 'Original recording', 'Double CD', 'Value Price', 'Vinyl']
@@ -106,9 +120,9 @@ class Album(Amazon):
                     album.release = date_parser.parse(detail.split(None, 3)[3].strip()).date()
                 # runtime
                 elif detail.startswith('Run Time:'):
-                    time = detail.split(None, 2)[2].strip().split()[0].split('.')
-                    seconds = int(time[0]) * 60
-                    if len(time) == 2: seconds += int(time[1])
+                    runtime = detail.split(None, 2)[2].strip().split()[0].split('.')
+                    seconds = int(runtime[0]) * 60
+                    if len(runtime) == 2: seconds += int(runtime[1])
                     album.time = seconds
                 # volumes
                 elif detail.startswith('Number of Discs:'):
@@ -137,6 +151,7 @@ class Album(Amazon):
                 volume = 0
                 for string in strings:
                     track = track_re.match(string)
+                    if not track: continue
                     order = int(track.group(1))
                     if order == 1: volume += 1
                     title = track.group(2).strip()
@@ -152,7 +167,7 @@ class Album(Amazon):
                 tracks = trackify([t[0] for t in self.get_all('td', {'class': 'titleCol'}, attrs = ['text'])])
                 times = [t[0] for t in self.get_all('td', {'class': 'runtimeCol'}, attrs = ['text'])]
                 for i in range(len(tracks)):
-                    tracks[i].time = ((int(times[i].split(':')[0]) * 60) + int(times[i].split(':')[0]))
+                    tracks[i].time = ((int(times[i].split(':')[0]) * 60) + int(times[i].split(':')[1]))
                 return tracks
 
             self.excavate()
@@ -160,8 +175,9 @@ class Album(Amazon):
                 if self.get('h2', {'id': 'MusicTracksHeader'}):
                     return tracklist()
                 return playlist()
-            except AttributeError:
+            except RuntimeError:
                 print 'retrying collect: %s' % self.url
+                self.collect()
 
 class NewMusic(Amazon):
 
@@ -194,7 +210,7 @@ class NewMusicGenre(Amazon):
             id_re = re.compile(r'^http://www\.amazon\.com/.+/dp/(.+)(|/.+)$')
             zts = bs(requests.get(url).text).find_all('div', attrs = {'class': 'zg_title'})
             ids += [id_re.match(zt.find('a')['href'].strip()).group(1) for zt in zts]
-            return [Album(str(i).strip(), genres = [self.name]) for i in ids]
+            return [Album(str(i).strip(), genres = self.name) for i in ids]
 
         ajax = '?ie=UTF8&pg=%d&ajax=1&isAboveTheFold=%d'
         grid = []

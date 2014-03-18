@@ -5,7 +5,13 @@ from bs4 import BeautifulSoup as bs
 
 class Exceptions:
 
-    class ScrapeTimeout(BaseException):
+    class CollectException(BaseException):
+        pass
+
+    class ScrapeTimeout(CollectException):
+        pass
+
+    class ExcavateFail(CollectException):
         pass
 
 class Collector(object):
