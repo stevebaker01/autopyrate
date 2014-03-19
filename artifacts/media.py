@@ -7,7 +7,7 @@ from artifacts.artifact import Artifact
 
 class Media(Artifact):
 
-    __attrs__ = ['title']
+    __attrs__ = ['title', 'path']
 
 class Album(Media):
 

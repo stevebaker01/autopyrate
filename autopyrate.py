@@ -5,11 +5,12 @@ from collectors.amazon import Amazon
 
 genres = ['Alternative Rock', 'Dance & Electronic', 'Hard Rock & Metal', 'Indie', 'Jazz', 'Pop', 'Rap & Hip-Hop', 'Rock']
 # genres = ['Alternative Rock']
+ignore = ['Christian', 'Country', 'Gospel']
 
 def main():
 
     b_re = re.compile(r'\[.*\]')
-    amazon = Amazon.collect_new_albums(genres = genres)
+    amazon = Amazon.collect_new_albums(genres = genres, ignore = ignore)
     these = set()
     those = set()
     for a in amazon: 
@@ -24,6 +25,8 @@ def main():
     print
     for g in those:
         print g
+
+    print len(amazon)
 
 if __name__ == '__main__':
     main()

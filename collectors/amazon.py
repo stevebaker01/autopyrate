@@ -36,7 +36,7 @@ class Amazon(Collector):
 
         composite = {}
         for album in albums:
-            if not vinyl and album.format == 'vinyl': continue
+            if not album or (not vinyl and album.format == 'vinyl'): continue
             for genre in album.genres:
                 if genre in ignore:
                     break
@@ -102,9 +102,12 @@ class Album(Amazon):
         if self.genres:
             if not isinstance(self.genres, list) and not isinstance(self.genres, tuple):
                 self.genres = [self.genres]
-            for genre in self.genres: album.genres += genre.split(' & ')
+            genres = []
+            for genre in self.genres: genres += genre.split(' & ')
+            self.genres = genres
         for i in range(len(self.genres)):
             if self.genres[i] in rockify: self.genres[i] += ' Rock'
+        album.genres = self.genres
 
         # get details from product details
         details = details.find_all('li')
@@ -154,8 +157,9 @@ class Album(Amazon):
         album.tracks = self.Tracks(grid = self.grid).collect()
         if album.tracks and not album.volumes:
             album.volumes = max([t.volume for t in album.tracks])
-        if album.tracks and not album.time and [t.time for t in album.tracks if t.time]:
-            album.time = sum([t.time for t in album.tracks if t.time])
+        if album.tracks and not album.time:
+            time = sum([t.time for t in album.tracks if t.time])
+            if time: album.time = time
         album.translate()
         return album
 
