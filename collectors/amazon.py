@@ -13,7 +13,7 @@ class Amazon(Collector):
     datum = 'http://www.amazon.com'
 
     @classmethod
-    def collect_new_albums(cls, genres = []):
+    def collect_new_albums(cls, genres = [], ignore = [], vinyl = False):
 
         genre_colls = NewMusic().collect()
         if genres: genre_colls = filter(lambda g: g.name in genres, genre_colls)
@@ -23,16 +23,31 @@ class Amazon(Collector):
         for album_coll in a_colls:
             if album_coll.grid not in [a.grid for a in album_colls]: album_colls.append(album_coll)
 
-        for c in album_colls:
-            a = c.collect()
-            if a: print a
-        exit()
-        return [a for a in [c.collect() for c in album_colls] if a]
+        # for c in album_colls:
+        #     a = c.collect()
+        #     # if a: print a
+        # exit()
+        # return [a for a in [c.collect() for c in album_colls] if a]
 
+        albums = []
         with ThreadPoolExecutor(max_workers = 10) as collector:
-            albums = []
             for album_coll in album_colls: albums.append(collector.submit(album_coll.collect))
-            return [album.result() for album in albums]
+            albums = [album.result() for album in albums if album]
+
+        composite = {}
+        for album in albums:
+            if not vinyl and album.format == 'vinyl': continue
+            for genre in album.genres:
+                if genre in ignore:
+                    break
+            else:
+                if album.id not in composite:
+                    composite[album.id] = album
+                    continue
+                composite[album.id].genres += album.genres
+        for album in composite.values():
+            album.categorize()
+        return composite.values()
 
 class Album(Amazon):
 
@@ -83,10 +98,15 @@ class Album(Amazon):
             time.sleep(2)
             return self.collect()
 
+        rockify = ['Punk', 'Indie', 'Alternative', 'Glam']
+        if self.genres:
+            if not isinstance(self.genres, list) and not isinstance(self.genres, tuple):
+                self.genres = [self.genres]
+            for genre in self.genres: album.genres += genre.split(' & ')
+        for i in range(len(self.genres)):
+            if self.genres[i] in rockify: self.genres[i] += ' Rock'
+
         # get details from product details
-        if self.genres and (not isinstance(self.genres, list) and not isinstance(self.genres, tuple)):
-            self.genres = [self.genres]
-        album.genres += self.genres
         details = details.find_all('li')
         for i in range(len(details)):
             detail = details[i].text.strip()
@@ -100,15 +120,17 @@ class Album(Amazon):
                 else:
                     album.format = detail.strip().lower()
             else:
+                ignore = ['CD', 'Original recording', 'Double CD', 'Value Price', 'Vinyl', 'General']
                 # genres
                 if detail.startswith('#'):
-                    album.genres += [h for h in [g.strip() for g in detail.split('>')[1:-1]]]
-                    # remove unwanted genres
-                    for remove in ['Vinyl']:
-                        while remove in self.genres: del[self.genres[self.genres.index(remove)]]
+                    genres = [h for h in [g.strip() for g in detail.split('>')[1:]] if h not in ignore]
+                    for genre in genres:
+                        genre = list(genre.replace(' Music', '').split(' & '))
+                        for g in genre:
+                            if g in rockify: g += ' Rock'
+                            album.genres.append(g)
                 # tags
                 elif detail.startswith('Format:'):
-                    ignore = ['CD', 'Original recording', 'Double CD', 'Value Price', 'Vinyl']
                     tags = [tag.strip().title() for tag in detail.split(None, 1)[1].split(',')]
                     album.tags = [t for t in tags if t not in ignore]
                 # label
@@ -134,6 +156,7 @@ class Album(Amazon):
             album.volumes = max([t.volume for t in album.tracks])
         if album.tracks and not album.time and [t.time for t in album.tracks if t.time]:
             album.time = sum([t.time for t in album.tracks if t.time])
+        album.translate()
         return album
 
     class Tracks(Amazon):

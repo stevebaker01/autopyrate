@@ -41,6 +41,27 @@ class Album(Media):
             string += fmt_track.format(' ', track.order, track.title, time)
         return string
 
+    def categorize(self):
+
+        if len(self.genres) == 1:
+            self.genre = self.genres[0]
+        elif self.genres:
+            genres = {}
+            for genre in self.genres:
+                c = self.genres.count(genre)
+                if c not in genres: genres[c] = []
+                if genre not in genres[c]: genres[c].append(genre)
+            m = genres[max(genres.keys())]
+            if len(m) == 1:
+                self.genre = m[0]
+            else:
+                for genre in self.genres:
+                    if genre in m:
+                        self.genre = genre
+                        break
+
+        self.genres = list(set(self.genres))
+
     class Track(Media):
 
         __attrs__ = ['order', 'time', 'volume']

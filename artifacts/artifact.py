@@ -46,3 +46,19 @@ class Artifact(object):
                 for x in getattr(self, l):
                     string += '    %s\n' % str(x)
         return string
+
+    def translate(self, dialect = 'utf8'):
+
+        def decypher(item):
+            if isinstance(item, Artifact):
+                item.translate(dialect = dialect)
+            elif isinstance(item, list):
+                for i in range(len(item)):
+                    item[i] = decypher(item[i])
+            elif isinstance(item, basestring):
+                item = item.encode(dialect)
+            return item
+
+        for a in self.__attrs__ + self.__lists__:
+            setattr(self, a, decypher(getattr(self, a)))
+
