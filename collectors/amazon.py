@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
 import re, requests, time
-from artifacts.media import Media
+from artifacts.media import Album
 from bs4 import BeautifulSoup as bs
-from collector import Collector
+from collectors.collector import Collector
 from concurrent.futures import ThreadPoolExecutor
 from dateutil import parser as date_parser
 
@@ -23,11 +23,11 @@ class Amazon(Collector):
         for album_coll in a_colls:
             if album_coll.grid not in [a.grid for a in album_colls]: album_colls.append(album_coll)
 
-        # for c in album_colls:
-        #     a = c.collect()
-        #     # if a: print a
-        # exit()
-        # return [a for a in [c.collect() for c in album_colls] if a]
+        for c in album_colls:
+            a = c.collect()
+            # if a: print a
+        exit()
+        return [a for a in [c.collect() for c in album_colls] if a]
 
         albums = []
         with ThreadPoolExecutor(max_workers = 10) as collector:
@@ -52,7 +52,7 @@ class Amazon(Collector):
 class Album(Amazon):
 
     datum = 'dp'
-    culture = Media.Album
+    culture = Album
 
     def __init__(self, grid, genres = []):
 
@@ -61,7 +61,7 @@ class Album(Amazon):
 
     def collect(self):
 
-        print self.grid
+        print(self.grid)
         self.excavate()
         retries = 0
         while not self.get('ul', {'data-category': re.compile(r'.*')}):
@@ -69,23 +69,23 @@ class Album(Amazon):
                 raise collector.exceptions.ExcavateFail(self.url)
             time.sleep(2)
             retries += 1
-            print 'retrying excavate (%d): %s' % (retries, self.url)
+            print('retrying excavate (%d): %s' % (retries, self.url))
             excavate()
 
         # ignore things that are not albums
         if not self.get('ul', {'data-category': 'music'}):
-            print 'not an album: %s' % self.url
+            print('not an album: %s' % self.url)
             return None
 
         main = self.get('div', {'class': 'buying', 'style': None, 'id': None})
         if main is None:
-            print 'retrying collect: %s' % self.url
+            print('retrying collect: %s' % self.url)
             time.sleep(2)
             return self.collect()
 
         album = self.artifact
         album.source = self.source
-        album.id = self.grid
+        album.grid = self.grid
         album.url = self.url
         album.title = main.find('span', attrs = {'id': 'btAsinTitle'}).text
         try:
@@ -94,7 +94,7 @@ class Album(Amazon):
             album.artist = 'various'
         details = self.get('table', {'id': 'productDetailsTable'})
         if details is None:
-            print 'retrying collect details: %s' % self.url
+            print('retrying collect details: %s' % self.url)
             time.sleep(2)
             return self.collect()
 
@@ -160,13 +160,13 @@ class Album(Amazon):
         if album.tracks and not album.time:
             time = sum([t.time for t in album.tracks if t.time])
             if time: album.time = time
-        album.translate()
+        print(album)
         return album
 
     class Tracks(Amazon):
 
         datum = 'dp/tracks'
-        culture = Media.Album.Track
+        culture = Album.Track
         
         def collect(self):
 
@@ -203,7 +203,7 @@ class Album(Amazon):
                     return tracklist()
                 return playlist()
             except RuntimeError:
-                print 'retrying collect: %s' % self.url
+                print('retrying collect: %s' % self.url)
                 self.collect()
 
 class NewMusic(Amazon):
@@ -250,7 +250,3 @@ class NewMusicGenre(Amazon):
             for unit in grid: matrix.append(collector.submit(excavate, unit))
             for find in matrix: finds += find.result()
             return finds
-
-Amazon.Album = Album
-Amazon.NewMusic = NewMusic
-Amazon.NewMusicGenre = NewMusicGenre

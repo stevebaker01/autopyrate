@@ -4,20 +4,33 @@ import re
 from copy import copy
 from datetime import timedelta
 from artifacts.artifact import Artifact
+from mongoengine import *
 
-class Media(Artifact):
+class Album(Artifact):
 
-    __attrs__ = ['title', 'path']
+    class Track(EmbeddedDocument):
 
-class Album(Media):
+        volume = IntField()
+        order = IntField()
+        title = StringField()
+        time = IntField()
+        path = StringField()
 
-    __attrs__ = ['artist', 'genre', 'format', 'issue', 'release', 'label', 'time', 'volumes']
-    __lists__ = ['tracks', 'genres', 'tags']
-
-    def __init__(self, title = None, artist = None):
-        super(Media, self).__init__()
-        if title: self.title = title
-        if artist: self.artist = artist
+    artist = StringField()
+    title = StringField()
+    genre = StringField()
+    format = StringField()
+    issue = DateTimeField()
+    release = DateTimeField()
+    label = StringField()
+    url = URLField()
+    time = IntField()
+    volumes = IntField()
+    tracks = ListField(EmbeddedDocumentField(Track))
+    genres = ListField(StringField())
+    tags = ListField(StringField)
+    path = StringField()
+    meta = {'collection': 'albums'}
 
     def tracks_str(self):
         if not self.tracks: return ''
@@ -62,20 +75,3 @@ class Album(Media):
 
         self.genres = list(set(self.genres))
 
-    class Track(Media):
-
-        __attrs__ = ['order', 'time', 'volume']
-
-        def __init__(self, title = None, volume = 1, order = None):
-            super(Media, self).__init__()
-            if title: self.title = title
-            if order: self.order = order
-            self.volume = volume
-
-        def __str__(self):
-
-            string = '%d. %s' % (self.order, self.title)
-            if self.time: string += ' %s' % str(timedelta(seconds = self.time))
-            return string
-
-Media.Album = Album

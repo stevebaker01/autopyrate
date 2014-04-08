@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import re, requests, time
+import re, requests, socket, time
 from bs4 import BeautifulSoup as bs
 
 class Exceptions:
@@ -54,11 +54,11 @@ class Collector(object):
             if retries == 5: raise Exceptions.ScrapeTimeout('Unable to scrape: %s' % self.url)
             try:
                 self.matrix = bs(requests.get(self.url, timeout = 5).text)
-            except requests.exceptions.Timeout:
-                print 'excavate timeout'
+            except(requests.exceptions.Timeout, socket.timeout):
+                print('excavate timeout')
                 self.matrix = None
             if self.matrix is not None: return self.matrix
-            print 'retrying excavate (%d): %s' % (retries, self.url)
+            print('retrying excavate (%d): %s' % (retries, self.url))
             time.sleep(2)
             retries += 1
 
