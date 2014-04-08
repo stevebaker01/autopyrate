@@ -6,7 +6,25 @@ from datetime import timedelta
 from artifacts.artifact import Artifact
 from mongoengine import *
 
-class Album(Artifact):
+class Media(Artifact):
+
+    class Contributor(EmbeddedDocument):
+
+        name = StringField()
+        title = StringField()
+
+        def __str__(self):
+            return '%s (%s)' % (self.name, self.title)
+
+    contributors = ListField(EmbeddedDocumentField(Contributor))
+    title = StringField()
+    genre = StringField()
+    genres = ListField(StringField())
+    path = StringField()
+    tags = ListField(StringField)
+    meta = {'allow_inheritance': True}
+
+class Album(Media):
 
     class Track(EmbeddedDocument):
 
@@ -16,21 +34,13 @@ class Album(Artifact):
         time = IntField()
         path = StringField()
 
-    artist = StringField()
-    title = StringField()
-    genre = StringField()
     format = StringField()
     issue = DateTimeField()
     release = DateTimeField()
     label = StringField()
-    url = URLField()
     time = IntField()
     volumes = IntField()
     tracks = ListField(EmbeddedDocumentField(Track))
-    genres = ListField(StringField())
-    tags = ListField(StringField)
-    path = StringField()
-    meta = {'collection': 'albums'}
 
     def tracks_str(self):
         if not self.tracks: return ''

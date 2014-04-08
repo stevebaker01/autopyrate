@@ -89,9 +89,10 @@ class Album(Amazon):
         album.url = self.url
         album.title = main.find('span', attrs = {'id': 'btAsinTitle'}).text
         try:
-            album.artist = main.find('a').text
+            contributor = album.Contributor(name = main.find('a').text, title = 'artist')
+            album.contributors.append(contributor)
         except AttributeError:
-            album.artist = 'various'
+            album.contributors.append(album.Contributor(name = 'various', title = 'artists'))
         details = self.get('table', {'id': 'productDetailsTable'})
         if details is None:
             print('retrying collect details: %s' % self.url)

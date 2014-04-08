@@ -3,12 +3,13 @@
 import os
 from traceback import extract_stack
 from collections import OrderedDict
-from mongoengine import connect, Document, StringField
+from mongoengine import connect, Document, StringField, URLField
 
 class Artifact(Document):
 
     source = StringField()
     grid = StringField()
+    url = URLField()
     meta = {'allow_inheritance': True}
 
     @classmethod
@@ -24,6 +25,7 @@ class Artifact(Document):
         fmt_attr = '{:%d} {:%d}\n' % (len_attr + 1, len_val)
         string = fmt_attr.format('source:', ('%s (%s)' % (self.source, self.grid)))
         for a in self._fields_ordered:
+            if a in identity: continue
             v = getattr(self, a)
             if not v: continue
             if isinstance(v, list):
