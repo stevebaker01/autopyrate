@@ -18,7 +18,6 @@ class Collector(object):
 
     datum = None
     culture = None
-    artifact = None
 
     def __init__(self, grid = None, name = None):
 
@@ -28,7 +27,6 @@ class Collector(object):
         self.locus()
         self.url = self.site
         if self.grid: self.drop_grid()
-        if self.culture: self.artifact = self.culture()
         self.matrix = None
 
     def locus(self):
@@ -46,6 +44,13 @@ class Collector(object):
     def drop_grid(self):
 
         self.url = '%s/%s' % (self.site, self.grid)
+
+    def retrieve(self):
+
+        try:
+            return self.culture.objects.get(source = self.source, grid = self.grid)
+        except self.culture.DoesNotExist:
+            return self.culture(source = self.source, grid = self.grid)
 
     def excavate(self):
 

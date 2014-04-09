@@ -13,7 +13,7 @@ class Amazon(Collector):
     datum = 'http://www.amazon.com'
 
     @classmethod
-    def collect_new_albums(cls, genres = [], ignore = [], vinyl = False):
+    def collect_new_albums(cls, genres = [], ignore = [], vinyl = False, save = False):
 
         genre_colls = NewMusic().collect()
         if genres: genre_colls = filter(lambda g: g.name in genres, genre_colls)
@@ -23,20 +23,16 @@ class Amazon(Collector):
         for album_coll in a_colls:
             if album_coll.grid not in [a.grid for a in album_colls]: album_colls.append(album_coll)
 
-        for c in album_colls:
-            a = c.collect()
-            # if a: print a
-        exit()
-        return [a for a in [c.collect() for c in album_colls] if a]
+        # albums = [a for a in [c.collect(save) for c in album_colls] if a]
 
         albums = []
         with ThreadPoolExecutor(max_workers = 10) as collector:
-            for album_coll in album_colls: albums.append(collector.submit(album_coll.collect))
+            for album_coll in album_colls: albums.append(collector.submit(album_coll.collect, save))
             albums = [album.result() for album in albums if album]
 
         composite = {}
         for album in albums:
-            if not album or (not vinyl and album.format == 'vinyl'): continue
+            if not album.format or (not vinyl and album.format == 'vinyl'): continue
             for genre in album.genres:
                 if genre in ignore:
                     break
@@ -59,9 +55,11 @@ class Album(Amazon):
         self.genres = genres
         super(Amazon, self).__init__(grid = grid)
 
-    def collect(self):
+    def collect(self, save = False):
 
         print(self.grid)
+        album = self.retrieve()
+        if album.id: return album
         self.excavate()
         retries = 0
         while not self.get('ul', {'data-category': re.compile(r'.*')}):
@@ -74,8 +72,8 @@ class Album(Amazon):
 
         # ignore things that are not albums
         if not self.get('ul', {'data-category': 'music'}):
-            print('not an album: %s' % self.url)
-            return None
+            if save: album.save()
+            return album
 
         main = self.get('div', {'class': 'buying', 'style': None, 'id': None})
         if main is None:
@@ -83,10 +81,6 @@ class Album(Amazon):
             time.sleep(2)
             return self.collect()
 
-        album = self.artifact
-        album.source = self.source
-        album.grid = self.grid
-        album.url = self.url
         album.title = main.find('span', attrs = {'id': 'btAsinTitle'}).text
         try:
             contributor = album.Contributor(name = main.find('a').text, title = 'artist')
@@ -161,7 +155,8 @@ class Album(Amazon):
         if album.tracks and not album.time:
             time = sum([t.time for t in album.tracks if t.time])
             if time: album.time = time
-        print(album)
+        album.categorize()
+        if save: album.save()
         return album
 
     class Tracks(Amazon):
